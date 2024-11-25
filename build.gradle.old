@@ -1,0 +1,140 @@
+// gradle -Pprofile=develop zip
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: "org.sonarqube"
+apply plugin: "jacoco"
+
+//$ gradle sonarqube \
+//  -Dsonar.projectKey=tryout_batch_sonar \
+//  -Dsonar.host.url=http://192.168.0.162:9000 \
+//  -Dsonar.login=b3f6ea16002841b358fa9918ea480766b0ad52ab
+
+sonarqube {
+    properties {
+        property "sonar.projectName", "Java :: TRYOUT :: batch"
+        property "sonar.projectKey", "$project.group:$project.name"
+        property "sonar.language", "java"
+        property "sonar.sourceEncoding", "UTF-8"
+        property "sonar.junit.reportsPath", "${project.buildDir}/test-results"
+        property "sonar.jacoco.reportPath", "${project.buildDir}/jacoco/test.exec"
+    }
+}
+jacoco {
+    toolVersion = '0.8.7'
+}
+test {
+    jacoco {
+        enabled = true
+        destinationFile = file("${buildDir}/jacoco/test.exec")
+    }
+}
+jacocoTestReport {
+    reports {
+        xml.enabled false
+        csv.enabled false
+        html.destination file("${buildDir}/jacocoHtml")
+    }
+}
+
+version = 'v1.3.2'
+
+buildscript {
+	repositories { 
+		maven {
+			url "https://plugins.gradle.org/m2/"
+		}
+	}
+	dependencies { 
+    	classpath 'org.ajoberstar:gradle-jacoco:0.1.0'
+    	classpath "org.sonarsource.scanner.gradle:sonarqube-gradle-plugin:3.3"
+	}
+}
+
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+archivesBaseName = 'batchTryout'
+
+repositories {
+	mavenCentral()
+	mavenLocal()
+}
+
+eclipse {
+	classpath {
+		downloadSources=true
+	}
+}
+
+String springVersion = '5.3.13'
+String springBatchVersion = '4.3.4'
+String logbackVersion = '1.2.9'
+String slf4jVersion = '1.7.32'
+
+dependencies {
+	compile 'commons-configuration:commons-configuration:1.6'
+	compile 'org.apache.commons:commons-dbcp2:2.9.0'
+	compile 'org.apache.commons:commons-pool2:2.11.1'
+	compile 'org.slf4j:slf4j-api:' + slf4jVersion
+	runtime 'org.slf4j:jcl-over-slf4j:' + slf4jVersion
+	compile 'ch.qos.logback:logback-core:' + logbackVersion
+	compile 'ch.qos.logback:logback-classic:' + logbackVersion
+	compile 'org.apache.logging.log4j:log4j-core:2.17.1'
+	compile 'org.apache.logging.log4j:log4j-api:2.17.1'
+    compile 'org.springframework:spring-core:' + springVersion
+    compile 'org.springframework:spring-oxm:' + springVersion
+	compile 'org.springframework:spring-jdbc:' + springVersion
+	testCompile 'org.springframework:spring-test:' + springVersion
+	compile 'org.springframework.batch:spring-batch-core:' + springBatchVersion
+	compile 'org.springframework.batch:spring-batch-infrastructure:' + springBatchVersion
+	testCompile 'org.springframework.batch:spring-batch-test:' + springBatchVersion
+	compile ('org.springmodules:spring-modules-jakarta-commons:0.8') {
+		exclude group: 'log4j', module: 'log4j'
+	}
+	compile "org.mybatis:mybatis:3.5.7"
+	compile "org.mybatis:mybatis-spring:2.0.6"
+
+	compile fileTree(dir: 'libs', include: '*.jar')
+
+	compile 'com.oracle.database.jdbc:ojdbc6:11.2.0.4'
+	compile 'com.h2database:h2:1.4.200'
+
+	testCompile "junit:junit:4.+"
+}
+
+final String DEFAULT_PROFILE = 'develop'
+allprojects {
+	if (!project.hasProperty('profile') || !profile) {
+		ext.profile = DEFAULT_PROFILE
+	}
+    sourceSets {
+        main {
+            resources {
+                srcDir "config/${profile}"
+            }
+        }
+    }
+}
+
+//  gradle zip -Pprofile=staging
+task zip(type: Zip) {
+	from 'src/dist'
+	from jar.outputs.files
+	baseName = 'batchTryout'
+	into('libs') {
+		from configurations.runtime
+	}
+	into('sh') {
+		from 'sh/batchTryout.sh'
+	}
+}
+
+// Command is
+// gradle zip
+zip.dependsOn(assemble)
+//assemble.dependsOn(zip)
+
+// $ gradle wrapper
+// $ gradlew zip
+// $ gradlew zip -Pprofile=staging

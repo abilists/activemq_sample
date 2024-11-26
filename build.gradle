@@ -11,6 +11,10 @@ archivesBaseName = 'batchSample'
 repositories {
     // Use Maven Central for resolving dependencies.
     mavenCentral()
+	maven {
+		url 'http://localhost:8081/artifactory/libs-release-local'
+		allowInsecureProtocol = true
+	}
 	mavenLocal()
 }
 
@@ -18,7 +22,7 @@ version = 'v1.0.0'
 
 tasks.named('jar') {
     manifest {
-        attributes('Implementation-Title': 'ACTIVEMQ-BATCH', 'Implementation-Version': project.version)
+        attributes('Implementation-Title': 'JMS-BATCH', 'Implementation-Version': project.version)
     }
 }
 
@@ -53,17 +57,22 @@ dependencies {
     testImplementation "junit:junit:4.+"
 }
 
-final String DEFAULT_PROFILE = 'develop'
+/* Multi-users environment */
+// -Pprofile=develop
+final String DEFAULT_PROFILE = 'local'
 allprojects {
 	if (!project.hasProperty('profile') || !profile) {
 		ext.profile = DEFAULT_PROFILE
 	}
-    sourceSets {
-        main {
-            resources {
-                srcDir "config/${profile}"
-            }
-        }
+	sourceSets {
+		main {
+			resources {
+				srcDir "config/${profile}"
+			}
+		}
+	}
+	processResources {
+        duplicatesStrategy = org.gradle.api.file.DuplicatesStrategy.INCLUDE
     }
 }
 
@@ -73,17 +82,17 @@ task zip(type: Zip) {
 	from jar.outputs.files
 	baseName = 'batchSample'
 	into('libs') {
-		from configurations.runtimeOnly
+		from configurations.implementation
 	}
 	into('sh') {
-		from 'sh/batchSample.sh'
+		from 'sh/startReceiver.sh'
+		from 'sh/stopReceiver.sh'
 	}
 }
 
 // Command is
 // gradle zip
 zip.dependsOn(assemble)
-//assemble.dependsOn(zip)
 
 // $ gradle wrapper
 // $ gradlew zip
